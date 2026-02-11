@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  auth-db:
+    image: postgres:15
+    container_name: auth-db
+    restart: always
+    environment:
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_password
+      POSTGRES_DB: auth_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+      - ./services/auth-service/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  auth-service:
+    build: ./services/auth-service
+    container_name: auth-service
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: auth-db
+      DB_USER: auth_user
+      DB_PASSWORD: auth_password
+      DB_NAME: auth_db
+      DB_PORT: 5432
+      JWT_SECRET: supersecretkey
+      JWT_EXPIRES_IN: 1h
+    depends_on:
+      - auth-db
+
+volumes:
+  auth_data:
