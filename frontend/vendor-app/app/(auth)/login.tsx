@@ -1,64 +1,69 @@
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { useState } from "react";
+import { View, Text, TextInput, Pressable, StyleSheet, Alert } from "react-native";
 import { router } from "expo-router";
 import { apiRequest } from "../../lib/api";
 import { saveToken } from "../../lib/auth";
 
-const APP_ROLE = "vendor";
-
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
-    try {
-      const response = await apiRequest("/auth/login", "POST", {
-        email,
-        password,
-      });
+    if (!email || !password) return Alert.alert("Error", "Please fill in all fields");
 
-      if (response.user.role !== APP_ROLE) {
-        throw new Error("Access denied: not a vendor account");
+    setLoading(true);
+    try {
+      const response = await apiRequest("/auth/login", "POST", { email, password });
+
+      // STRICT ROLE CHECK
+      if (response.user.role !== "vendor") {
+        throw new Error("Access Denied: This app is for Vendor only.");
       }
 
       await saveToken(response.token);
-      router.replace("/");
+      router.replace("/(tabs)");
     } catch (err: any) {
-      setError(err.message);
+      Alert.alert("Login Failed", err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Vendor Login</Text>
-      {error ? <Text style={{ color: "red" }}>{error}</Text> : null}
-
-      <TextInput
-        placeholder="Email"
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
+      <Text style={styles.title}>Snackr Vendor</Text>
+      
+      <TextInput 
+        style={styles.input} 
+        placeholder="Email" 
+        value={email} 
+        onChangeText={setEmail} 
+        autoCapitalize="none" 
+      />
+      <TextInput 
+        style={styles.input} 
+        placeholder="Password" 
+        value={password} 
+        onChangeText={setPassword} 
+        secureTextEntry 
       />
 
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-      />
+      <Pressable style={styles.button} onPress={handleLogin} disabled={loading}>
+        <Text style={styles.buttonText}>{loading ? "Logging in..." : "Login"}</Text>
+      </Pressable>
 
-      <Pressable style={styles.button} onPress={handleLogin}>
-        <Text style={{ color: "#fff" }}>Login</Text>
+      <Pressable onPress={() => router.push("/register")} style={{ marginTop: 20 }}>
+        <Text style={{ color: "blue" }}>Create an account</Text>
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 20 },
-  title: { fontSize: 24, marginBottom: 20 },
-  input: { borderWidth: 1, padding: 10, marginBottom: 15 },
-  button: { backgroundColor: "black", padding: 15, alignItems: "center" },
+  container: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: "#fff" },
+  title: { fontSize: 28, fontWeight: "bold", textAlign: "center", marginBottom: 30 },
+  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 15, marginBottom: 15 },
+  button: { backgroundColor: "#000", padding: 15, borderRadius: 8, alignItems: "center" },
+  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 });
