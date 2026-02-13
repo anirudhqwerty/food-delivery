@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://192.168.64.1:8080";
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://172.16.164.205:8080";
 
 export async function apiRequest(
   path: string,

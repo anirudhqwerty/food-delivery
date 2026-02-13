@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  Alert,
+} from "react-native";
 import { router } from "expo-router";
 import { apiRequest } from "../../lib/api";
 import { saveToken } from "../../lib/auth";
@@ -16,7 +23,7 @@ export default function Register() {
       const response = await apiRequest("/auth/register", "POST", {
         email,
         password,
-        role: "vendor" // HARDCODED
+        role: "vendor",
       });
       await saveToken(response.token);
       router.replace("/(tabs)");
@@ -57,8 +64,24 @@ export default function Register() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 20 },
-  title: { fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 20 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, marginBottom: 15 },
-  button: { backgroundColor: "#000", padding: 15, borderRadius: 8, alignItems: "center" },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+  },
+  button: {
+    backgroundColor: "#000",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+  },
   buttonText: { color: "#fff", fontWeight: "bold" },
 });
