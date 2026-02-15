@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://172.16.164.205:8080";
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://172.16.164.198:8080";
 
 export async function apiRequest(
   path: string,
@@ -21,7 +21,19 @@ export async function apiRequest(
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const data = await res.json();
+  const contentType = res.headers.get("content-type") ?? "";
+  let data: any;
+
+  if (contentType.includes("application/json")) {
+    data = await res.json();
+  } else {
+    const text = await res.text();
+    throw new Error(
+      text
+        ? `Expected JSON response but received ${contentType || "text"}: ${text}`
+        : `Expected JSON response but server returned ${contentType || "text"}`
+    );
+  }
 
   if (!res.ok) {
     throw new Error(data.error || "Something went wrong");

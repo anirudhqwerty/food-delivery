@@ -16,9 +16,9 @@ export default function Login() {
     try {
       const response = await apiRequest("/auth/login", "POST", { email, password });
 
-      // STRICT ROLE CHECK
+      // role check
       if (response.user.role !== "customer") {
-        throw new Error("Access Denied: This app is for Customers only.");
+        throw new Error("Access Denied: This app is for customers only.");
       }
 
       await saveToken(response.token);

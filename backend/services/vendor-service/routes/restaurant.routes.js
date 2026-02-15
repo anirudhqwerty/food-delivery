@@ -283,7 +283,7 @@ router.delete("/menu/:id", verifyVendor, async (req, res, next) => {
 // public routes for customer app via nginx
 
 // GET /vendor/public/restaurants
-// Get a list of all restaurants for the customer feed
+// get a list of all restaurants for the customer feed
 router.get("/public/restaurants", async (req, res, next) => {
   try {
     const result = await pool.query(
@@ -298,18 +298,21 @@ router.get("/public/restaurants", async (req, res, next) => {
   }
 });
 
-// GET /vendor/public/menu/:restaurantId
-// Get the menu for a specific restaurant (Customers only see available items)
-router.get("/public/menu/:restaurantId", async (req, res, next) => {
+// GET /vendor/public/menu
+// get all available menu items from all restaurants
+router.get("/public/menu", async (req, res, next) => {
   try {
-    const { restaurantId } = req.params;
-
     const result = await pool.query(
-      `SELECT id, name, description, price, is_available 
-       FROM menu_items 
-       WHERE restaurant_id = $1 AND is_available = true
-       ORDER BY created_at DESC`,
-      [restaurantId]
+      `SELECT 
+         m.id, 
+         m.name AS item_name, 
+         m.description, 
+         m.price, 
+         r.name AS restaurant_name 
+       FROM menu_items m
+       INNER JOIN restaurants r ON m.restaurant_id = r.id
+       WHERE m.is_available = true
+       ORDER BY m.created_at DESC`
     );
 
     res.json(result.rows);
