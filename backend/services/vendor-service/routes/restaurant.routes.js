@@ -321,4 +321,34 @@ router.get("/public/menu", async (req, res, next) => {
   }
 });
 
+// GET /vendor/public/menu/:id
+// get a single available menu item by id (used by order-service)
+router.get("/public/menu/:id", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT 
+         m.id,
+         m.restaurant_id,
+         m.name,
+         m.description,
+         m.price,
+         m.quantity,
+         m.is_available
+       FROM menu_items m
+       WHERE m.id = $1 AND m.is_available = true`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Menu item not found" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
