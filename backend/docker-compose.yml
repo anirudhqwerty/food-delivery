@@ -103,34 +103,34 @@ services:
   # -----------------------------
   # DELIVERY SERVICE
   # -----------------------------
-  delivery-db:
-    image: postgres:15-alpine
-    container_name: delivery_db_container
-    restart: always
-    environment:
-      POSTGRES_USER: delivery_user
-      POSTGRES_PASSWORD: delivery_password
-      POSTGRES_DB: delivery_db
-    ports:
-      - "5436:5432"
-    volumes:
-      - ./services/delivery-service/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - delivery_db_data:/var/lib/postgresql/data
+  # delivery-db:
+  #   image: postgres:15-alpine
+  #   container_name: delivery_db_container
+  #   restart: always
+  #   environment:
+  #     POSTGRES_USER: delivery_user
+  #     POSTGRES_PASSWORD: delivery_password
+  #     POSTGRES_DB: delivery_db
+  #   ports:
+  #     - "5436:5432"
+  #   volumes:
+  #     - ./services/delivery-service/init.sql:/docker-entrypoint-initdb.d/init.sql
+  #     - delivery_db_data:/var/lib/postgresql/data
 
-  delivery-service:
-    build: ./services/delivery-service
-    container_name: delivery_service_container
-    restart: always
-    ports:
-      - "5003:5003"
-    environment:
-      DATABASE_URL: postgres://delivery_user:delivery_password@delivery-db:5432/delivery_db
-      JWT_SECRET: anirudh123
-      PORT: 5003
-      RABBITMQ_URL: amqp://rabbitmq
-    depends_on:
-      - delivery-db
-      - rabbitmq
+  # delivery-service:
+  #   build: ./services/delivery-service
+  #   container_name: delivery_service_container
+  #   restart: always
+  #   ports:
+  #     - "5003:5003"
+  #   environment:
+  #     DATABASE_URL: postgres://delivery_user:delivery_password@delivery-db:5432/delivery_db
+  #     JWT_SECRET: anirudh123
+  #     PORT: 5003
+  #     RABBITMQ_URL: amqp://rabbitmq
+  #   depends_on:
+  #     - delivery-db
+  #     - rabbitmq
 
 
   # -----------------------------
@@ -170,10 +170,8 @@ services:
       - auth-service
       - vendor-service
       - order-service
-      - delivery-service
 
 volumes:
   auth_db_data:
   vendor_db_data:
   order_db_data:
-  delivery_db_data:
