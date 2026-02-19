@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const express = require("express");
+const cors = require("cors");
 const { initDb, getDb, closeDb, initRabbit, getRabbit, closeRabbit, initRedis, getRedis, closeRedis } = require("../db");
 const orderRoutes = require("../routes/restaurant.routes");
 const startConsumer = require("./order.consumer");
@@ -8,6 +9,7 @@ const startConsumer = require("./order.consumer");
 const app = express();
 const PORT = process.env.PORT || 5002;
 
+app.use(cors());
 app.use(express.json());
 
 app.use("/order", orderRoutes);
@@ -32,7 +34,7 @@ app.get("/health/ready", async (req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error(err);
+  console.error("Error:", err.message);
   res.status(err.status || 500).json({
     error: err.message || "Internal Server Error",
   });

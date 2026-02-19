@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require("uuid");
+const { randomUUID } = require("crypto");
 const { getDb, getRabbit, getRedis } = require("../db");
 
 async function createOrder(req, res) {
@@ -7,8 +7,19 @@ async function createOrder(req, res) {
 
   const { restaurant_id, items, total_amount } = req.body;
 
-  if (!restaurant_id || !Array.isArray(items) || items.length === 0 || !total_amount) {
-    return res.status(400).json({ error: "Invalid request body" });
+  console.log("Order request body:", { restaurant_id, items, total_amount });
+
+  // Validate required fields
+  if (!restaurant_id) {
+    return res.status(400).json({ error: "Invalid request body: restaurant_id is required" });
+  }
+  
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: "Invalid request body: items must be a non-empty array" });
+  }
+  
+  if (!total_amount || parseFloat(total_amount) <= 0) {
+    return res.status(400).json({ error: "Invalid request body: total_amount must be a positive number" });
   }
 
   const db = getDb();
@@ -16,7 +27,7 @@ async function createOrder(req, res) {
   const redis = getRedis();
 
   try {
-    const orderId = uuidv4();
+    const orderId = randomUUID();
     
     await db.query("BEGIN");
     
@@ -126,6 +137,47 @@ async function updateOrderStatus(req, res) {
 
     const order = result.rows[0];
 
+    // If order is accepted, decrease inventory
+    if (status === "VENDOR_ACCEPTED") {
+      try {
+        const itemsResult = await db.query(
+          `SELECT menu_item_id as menu_item_id, quantity FROM order_items WHERE order_id = $1`,
+          [orderId]
+        );
+
+        console.log(`[Order ${orderId}] Fetched ${itemsResult.rows.length} items for inventory update`);
+
+        if (itemsResult.rows.length > 0) {
+          // Call vendor service to update inventory
+          const items = itemsResult.rows.map(item => ({
+            menu_item_id: item.menu_item_id,
+            quantity: item.quantity
+          }));
+
+          console.log(`[Order ${orderId}] Updating inventory for items:`, JSON.stringify(items));
+
+          const vendorServiceUrl = process.env.VENDOR_SERVICE_URL || "http://vendor-service:5001";
+          const response = await fetch(`${vendorServiceUrl}/vendor/internal/inventory`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items })
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[Order ${orderId}] Inventory update failed (${response.status}):`, errorText);
+          } else {
+            const result = await response.json();
+            console.log(`[Order ${orderId}] Inventory updated successfully:`, result);
+          }
+        } else {
+          console.log(`[Order ${orderId}] No items to update inventory for`);
+        }
+      } catch (inventoryErr) {
+        console.error(`[Order ${orderId}] Inventory update error:`, inventoryErr.message);
+      }
+    }
+
     channel.publish("order_exchange", `order.${status.toLowerCase()}`, Buffer.from(
       JSON.stringify({
         event: `order_${status.toLowerCase()}`,
@@ -143,8 +195,37 @@ async function updateOrderStatus(req, res) {
   }
 }
 
+async function getRestaurantOrders(req, res) {
+  const { restaurantId } = req.params;
+  
+  if (!restaurantId) {
+    return res.status(400).json({ error: "Restaurant ID is required" });
+  }
+
+  const db = getDb();
+
+  try {
+    const result = await db.query(
+      `SELECT o.id, o.customer_id, o.restaurant_id, o.total_amount::numeric, o.status, o.created_at,
+              COALESCE(json_agg(json_build_object('id', oi.id, 'item_name', oi.item_name, 'price', oi.item_price, 'quantity', oi.quantity)) FILTER (WHERE oi.id IS NOT NULL), '[]'::json) as items
+       FROM orders o
+       LEFT JOIN order_items oi ON o.id = oi.order_id
+       WHERE o.restaurant_id = $1 AND o.status NOT IN ('DELIVERED', 'CANCELLED')
+       GROUP BY o.id, o.customer_id, o.restaurant_id, o.total_amount, o.status, o.created_at
+       ORDER BY o.created_at DESC`,
+      [restaurantId]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching restaurant orders:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   createOrder,
   getOrder,
   updateOrderStatus,
+  getRestaurantOrders,
 };

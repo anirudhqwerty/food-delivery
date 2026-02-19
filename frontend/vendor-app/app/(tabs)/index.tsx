@@ -1,5 +1,5 @@
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useEffect, useState, useCallback } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -229,6 +229,24 @@ export default function VendorHome() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Auto-refresh menu items when tab comes into focus (after accepting orders)
+  useFocusEffect(
+    useCallback(() => {
+      // Refresh menu items to show updated quantities after orders
+      const refreshMenu = async () => {
+        try {
+          const token = await getToken();
+          if (!token) return;
+          const menuData = await apiRequest("/vendor/menu", "GET", undefined, token);
+          setMenuItems(menuData || []);
+        } catch (e) {
+          console.error("Failed to refresh menu:", e);
+        }
+      };
+      refreshMenu();
+    }, [])
+  );
 
   if (loading) {
     return (

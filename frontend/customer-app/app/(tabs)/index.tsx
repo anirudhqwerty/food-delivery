@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   View,
   Text,
@@ -9,6 +10,7 @@ import {
   Alert
 } from "react-native";
 import { apiRequest } from "../../lib/api";
+import { getToken } from "../../lib/auth";
 
 // Added restaurant_id because the backend order-service requires it
 interface FoodItem {
@@ -16,6 +18,7 @@ interface FoodItem {
   item_name: string;
   description: string;
   price: string | number;
+  quantity: number;
   restaurant_name: string;
   restaurant_id: number; 
 }
@@ -33,13 +36,22 @@ export default function HomeScreen() {
   // New Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isOrdering, setIsOrdering] = useState(false);
-
-  // TODO: Retrieve your actual stored Auth token here (e.g., from SecureStore or Context)
-  const userToken = "YOUR_JWT_TOKEN_HERE"; 
+  const [userToken, setUserToken] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchFoodFeed();
+    const initializeToken = async () => {
+      const token = await getToken();
+      setUserToken(token);
+    };
+    initializeToken();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Refresh menu items whenever this tab comes into focus
+      fetchFoodFeed();
+    }, [])
+  );
 
   const fetchFoodFeed = async () => {
     try {
@@ -55,6 +67,18 @@ export default function HomeScreen() {
   };
 
   const handleAddToCart = (item: FoodItem) => {
+    // Check if we're exceeding available quantity
+    const currentInCart = cart.find(i => i.id === item.id)?.cartQuantity || 0;
+    const availableQuantity = Number(item.quantity) || 0;
+    
+    if (currentInCart >= availableQuantity) {
+      Alert.alert(
+        "Quantity Limit",
+        `Only ${availableQuantity} of this item available. You have ${currentInCart} in your cart.`
+      );
+      return;
+    }
+
     // Enforce backend rule: Items must be from the same restaurant
     if (cart.length > 0 && cart[0].restaurant_id !== item.restaurant_id) {
       Alert.alert("Hold on!", "You can only order from one restaurant at a time.");
@@ -75,23 +99,31 @@ export default function HomeScreen() {
   const handleCheckout = async () => {
     if (cart.length === 0) return;
 
+    if (!userToken) {
+      Alert.alert("Error", "You need to be logged in to place an order");
+      return;
+    }
+
     try {
       setIsOrdering(true);
       
-      // Format payload exactly as the backend controller expects it
+      const totalAmount = cart.reduce((sum, item) => sum + (parseFloat(String(item.price)) * item.cartQuantity), 0);
+      
       const payload = {
         restaurant_id: cart[0].restaurant_id,
         items: cart.map(item => ({
           menu_item_id: item.id,
+          name: item.item_name,
+          price: parseFloat(String(item.price)),
           quantity: item.cartQuantity
-        }))
+        })),
+        total_amount: totalAmount
       };
 
-      // Ensure this endpoint matches your API gateway routing for order-service
       await apiRequest("/orders", "POST", payload, userToken);
       
       Alert.alert("Success!", "Your order has been placed successfully.");
-      setCart([]); // Clear cart on success
+      setCart([]);
     } catch (err: any) {
       Alert.alert("Order Failed", err.message || "Something went wrong.");
     } finally {
@@ -102,6 +134,9 @@ export default function HomeScreen() {
   const renderFoodItem = ({ item }: { item: FoodItem }) => {
     // Find if item is already in cart to show quantity
     const cartItem = cart.find(i => i.id === item.id);
+    const currentQuantity = cartItem?.cartQuantity || 0;
+    const availableQuantity = Number(item.quantity) || 0;
+    const isOutOfStock = currentQuantity >= availableQuantity;
 
     return (
       <TouchableOpacity style={styles.card} activeOpacity={0.8}>
@@ -115,11 +150,15 @@ export default function HomeScreen() {
         </Text>
         
         <TouchableOpacity 
-          style={styles.addButton} 
+          style={[styles.addButton, isOutOfStock && styles.addButtonDisabled]} 
           onPress={() => handleAddToCart(item)}
+          disabled={isOutOfStock}
         >
           <Text style={styles.addButtonText}>
-            {cartItem ? `Add More (${cartItem.cartQuantity} in cart)` : "Add to Cart"}
+            {cartItem 
+              ? `Add More (${cartItem.cartQuantity}/${availableQuantity} in cart)` 
+              : `Add to Cart (${availableQuantity} available)`
+            }
           </Text>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -202,6 +241,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: "center",
+  },
+  addButtonDisabled: {
+    backgroundColor: "#ccc",
   },
   addButtonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
   

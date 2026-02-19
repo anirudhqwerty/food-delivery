@@ -94,6 +94,7 @@ services:
       PORT: 5002
       RABBITMQ_URL: amqp://rabbitmq
       REDIS_HOST: redis
+      VENDOR_SERVICE_URL: http://vendor-service:5001
     depends_on:
       - order-db
       - rabbitmq
