@@ -120,7 +120,7 @@ export default function HomeScreen() {
         total_amount: totalAmount
       };
 
-      await apiRequest("/orders", "POST", payload, userToken);
+      await apiRequest("/order/", "POST", payload, userToken);
       
       Alert.alert("Success!", "Your order has been placed successfully.");
       setCart([]);

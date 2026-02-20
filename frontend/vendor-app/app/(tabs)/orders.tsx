@@ -151,6 +151,26 @@ export default function OrdersScreen() {
     ]);
   }
 
+  async function markOrderReady(orderId: string) {
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      await apiRequest(
+        `/order/${orderId}/status`,
+        "PATCH",
+        { status: "READY" },
+        token
+      );
+
+      // Refresh orders list
+      loadOrdersData();
+      Alert.alert("Success", "Food marked as Ready!");
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to update order");
+    }
+  }
+
   function getStatusColor(status: string) {
     switch (status) {
       case "CREATED":
@@ -227,6 +247,18 @@ export default function OrdersScreen() {
             >
               <Ionicons name="close-circle" size={18} color="white" />
               <Text style={styles.buttonText}>Reject</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {item.status === "VENDOR_ACCEPTED" && (
+          <View style={styles.actionsContainer}>
+            <Pressable
+              style={[styles.button, styles.readyButton]}
+              onPress={() => markOrderReady(item.id)}
+            >
+              <Ionicons name="fast-food" size={18} color="white" />
+              <Text style={styles.buttonText}>Mark Food as Ready</Text>
             </Pressable>
           </View>
         )}
@@ -427,6 +459,9 @@ const styles = StyleSheet.create({
   },
   rejectButton: {
     backgroundColor: "#FF6B6B",
+  },
+  readyButton: {
+    backgroundColor: "#FF9F43",
   },
   buttonText: {
     color: "#FFFFFF",
