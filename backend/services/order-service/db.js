@@ -54,6 +54,7 @@ async function initRabbit() {
       await channel.assertExchange("order_exchange", "topic", { durable: true });
       await channel.assertQueue("order_queue", { durable: true });
       await channel.bindQueue("order_queue", "order_exchange", "order.*");
+      await channel.bindQueue("order_queue", "order_exchange", "delivery.*");
       
       rabbit.connection = conn;
       rabbit.channel = channel;

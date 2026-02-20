@@ -2,19 +2,44 @@ const { getDb, getRabbit } = require("../db");
 
 async function updateDeliveryStatus(req, res) {
   const { deliveryId } = req.params;
-  const { status, driver_id } = req.body; 
+  const { status } = req.body;
+  const driver_id = req.user.userId; // Extract real driver ID from JWT token
 
   const db = getDb();
   const channel = getRabbit();
 
   try {
-    const result = await db.query(
-      `UPDATE deliveries SET status = $1, driver_id = COALESCE($2, driver_id), updated_at = CURRENT_TIMESTAMP
-       WHERE id = $3 RETURNING id, order_id, driver_id, status`,
-      [status, driver_id, deliveryId]
+    // Ensure driver exists in the local drivers table before assigning
+    await db.query(
+      `INSERT INTO drivers (id, name, phone) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
+      [driver_id, 'Driver', 'N/A']
     );
 
-    if (result.rows.length === 0) return res.status(404).json({ error: "Delivery not found" });
+    let query = "";
+    let params = [];
+
+    if (status === "ASSIGNED") {
+      // Protect against Race Conditions: Only assign if still PENDING
+      query = `UPDATE deliveries 
+               SET status = $1, driver_id = $2, updated_at = CURRENT_TIMESTAMP
+               WHERE id = $3 AND status = 'PENDING' 
+               RETURNING id, order_id, driver_id, status`;
+      params = [status, driver_id, deliveryId];
+    } else {
+      // Protect against hijacking: Only the assigned driver can update their delivery
+      query = `UPDATE deliveries 
+               SET status = $1, updated_at = CURRENT_TIMESTAMP
+               WHERE id = $2 AND driver_id = $3 
+               RETURNING id, order_id, driver_id, status`;
+      params = [status, deliveryId, driver_id];
+    }
+
+    const result = await db.query(query, params);
+
+    if (result.rows.length === 0) {
+      return res.status(409).json({ error: "Delivery no longer available or unauthorized" });
+    }
+
     const delivery = result.rows[0];
 
     let eventName = "";

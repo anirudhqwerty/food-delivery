@@ -9,6 +9,8 @@ async function startConsumer() {
 
     try {
       const content = JSON.parse(msg.content.toString());
+      
+      console.log(`[Order Consumer] Received event: ${content.event} for order ${content.order_id}`);
 
       if (content.event === "vendor_rejected") {
         await db.query(
