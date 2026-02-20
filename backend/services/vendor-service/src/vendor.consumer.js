@@ -11,7 +11,7 @@ async function startConsumer() {
       const content = JSON.parse(msg.content.toString());
 
       // Expecting event like 'order_vendor_accepted' and payload with items: [{ menu_item_id, quantity }, ...]
-      if (content.event === "order_vendor_accepted" || content.event === "order_vendor_accepted") {
+      if (content.event === "order_vendor_accepted") {
         const items = content.items || [];
 
         if (items.length === 0) {
