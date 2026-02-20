@@ -10,12 +10,7 @@ async function startConsumer() {
     try {
       const content = JSON.parse(msg.content.toString());
 
-      if (content.event === "vendor_accepted") {
-        await db.query(
-          `UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-          ["VENDOR_ACCEPTED", content.order_id]
-        );
-      } else if (content.event === "vendor_rejected") {
+      if (content.event === "vendor_rejected") {
         await db.query(
           `UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
           ["VENDOR_REJECTED", content.order_id]

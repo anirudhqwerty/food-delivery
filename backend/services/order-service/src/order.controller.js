@@ -137,7 +137,8 @@ async function updateOrderStatus(req, res) {
 
     const order = result.rows[0];
 
-    // If order is accepted, decrease inventory
+    // When vendor accepts, include items in published event so Vendor Service can update inventory
+    let itemsPayload = null;
     if (status === "VENDOR_ACCEPTED") {
       try {
         const itemsResult = await db.query(
@@ -145,47 +146,27 @@ async function updateOrderStatus(req, res) {
           [orderId]
         );
 
-        console.log(`[Order ${orderId}] Fetched ${itemsResult.rows.length} items for inventory update`);
-
         if (itemsResult.rows.length > 0) {
-          // Call vendor service to update inventory
-          const items = itemsResult.rows.map(item => ({
+          itemsPayload = itemsResult.rows.map(item => ({
             menu_item_id: item.menu_item_id,
             quantity: item.quantity
           }));
-
-          console.log(`[Order ${orderId}] Updating inventory for items:`, JSON.stringify(items));
-
-          const vendorServiceUrl = process.env.VENDOR_SERVICE_URL || "http://vendor-service:5001";
-          const response = await fetch(`${vendorServiceUrl}/vendor/internal/inventory`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ items })
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[Order ${orderId}] Inventory update failed (${response.status}):`, errorText);
-          } else {
-            const result = await response.json();
-            console.log(`[Order ${orderId}] Inventory updated successfully:`, result);
-          }
-        } else {
-          console.log(`[Order ${orderId}] No items to update inventory for`);
         }
       } catch (inventoryErr) {
-        console.error(`[Order ${orderId}] Inventory update error:`, inventoryErr.message);
+        console.error(`[Order ${orderId}] Failed to fetch order items for vendor event:`, inventoryErr.message);
       }
     }
 
-    channel.publish("order_exchange", `order.${status.toLowerCase()}`, Buffer.from(
-      JSON.stringify({
-        event: `order_${status.toLowerCase()}`,
-        order_id: orderId,
-        status,
-        timestamp: new Date().toISOString(),
-      })
-    ));
+    const eventPayload = {
+      event: `order_${status.toLowerCase()}`,
+      order_id: orderId,
+      status,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (itemsPayload) eventPayload.items = itemsPayload;
+
+    channel.publish("order_exchange", `order.${status.toLowerCase()}`, Buffer.from(JSON.stringify(eventPayload)));
 
     await redis.del(`order:${orderId}`);
 

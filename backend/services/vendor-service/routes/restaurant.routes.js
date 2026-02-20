@@ -352,35 +352,4 @@ router.get("/public/menu/:id", async (req, res, next) => {
     next(err);
   }
 });
-
-// PATCH /vendor/internal/inventory
-// internal endpoint to decrease menu item quantities (called by order-service)
-router.patch("/internal/inventory", async (req, res, next) => {
-  try {
-    const { items } = req.body; // items: [{ menu_item_id, quantity }, ...]
-
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: "Invalid items array" });
-    }
-
-    // Update all items
-    for (const item of items) {
-      if (!item.menu_item_id || !item.quantity) {
-        return res.status(400).json({ error: "Each item must have menu_item_id and quantity" });
-      }
-
-      await pool.query(
-        `UPDATE menu_items 
-         SET quantity = GREATEST(quantity - $1, 0)
-         WHERE id = $2`,
-        [item.quantity, item.menu_item_id]
-      );
-    }
-
-    res.json({ success: true, message: "Inventory updated" });
-  } catch (err) {
-    next(err);
-  }
-});
-
 module.exports = router;

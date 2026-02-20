@@ -3,6 +3,8 @@ const express = require("express");
 const cors = require("cors");
 const restaurantRoutes = require("../routes/restaurant.routes");
 const pool = require("../db");
+const { initRabbit } = require("./rabbit");
+const startVendorConsumer = require("./vendor.consumer");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -25,7 +27,13 @@ async function start() {
   try {
     await pool.query("SELECT 1");
     console.log("✓ Database connected");
-    
+
+    await initRabbit();
+    console.log("✓ RabbitMQ connected");
+
+    await startVendorConsumer();
+    console.log("✓ Vendor consumer started");
+
     const server = app.listen(PORT, () => {
       console.log(`✓ Vendor service listening on port ${PORT}`);
     });
