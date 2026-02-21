@@ -93,7 +93,6 @@ services:
       JWT_SECRET: anirudh123
       PORT: 5002
       RABBITMQ_URL: amqp://rabbitmq
-      VENDOR_SERVICE_URL: http://vendor-service:5001
     depends_on:
       - order-db
       - rabbitmq

@@ -59,7 +59,7 @@ async function createOrder(req, res) {
       timestamp: new Date().toISOString(),
     };
 
-    channel.publish("order_exchange", "order.created", Buffer.from(JSON.stringify(orderMsg)));
+    // channel.publish("order_exchange", "order.created", Buffer.from(JSON.stringify(orderMsg)));
 
     res.status(201).json(order);
   } catch (err) {
