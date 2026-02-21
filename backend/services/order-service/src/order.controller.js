@@ -1,5 +1,5 @@
 const { randomUUID } = require("crypto");
-const { getDb, getRabbit, getRedis } = require("../db");
+const { getDb, getRabbit } = require("../db");
 
 async function createOrder(req, res) {
   const customerId = req.user?.sub;
@@ -24,7 +24,6 @@ async function createOrder(req, res) {
 
   const db = getDb();
   const channel = getRabbit();
-  const redis = getRedis();
 
   try {
     const orderId = randomUUID();
@@ -62,8 +61,6 @@ async function createOrder(req, res) {
 
     channel.publish("order_exchange", "order.created", Buffer.from(JSON.stringify(orderMsg)));
 
-    await redis.setex(`order:${orderId}`, 3600, JSON.stringify(order));
-
     res.status(201).json(order);
   } catch (err) {
     await db.query("ROLLBACK").catch(() => {});
@@ -77,13 +74,9 @@ async function getOrder(req, res) {
 
   if (!customerId) return res.status(401).json({ error: "Unauthorized" });
 
-  const redis = getRedis();
   const db = getDb();
 
   try {
-    const cached = await redis.get(`order:${orderId}`);
-    if (cached) return res.json(JSON.parse(cached));
-
     const result = await db.query(
       `SELECT * FROM orders WHERE id = $1 AND customer_id = $2`,
       [orderId, customerId]
@@ -94,7 +87,6 @@ async function getOrder(req, res) {
     }
 
     const order = result.rows[0];
-    await redis.setex(`order:${orderId}`, 3600, JSON.stringify(order));
 
     res.json(order);
   } catch (err) {
@@ -121,7 +113,6 @@ async function updateOrderStatus(req, res) {
 
   const db = getDb();
   const channel = getRabbit();
-  const redis = getRedis();
 
   try {
     const result = await db.query(
@@ -167,8 +158,6 @@ async function updateOrderStatus(req, res) {
     if (itemsPayload) eventPayload.items = itemsPayload;
 
     channel.publish("order_exchange", `order.${status.toLowerCase()}`, Buffer.from(JSON.stringify(eventPayload)));
-
-    await redis.del(`order:${orderId}`);
 
     res.json(order);
   } catch (err) {

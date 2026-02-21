@@ -93,13 +93,10 @@ services:
       JWT_SECRET: anirudh123
       PORT: 5002
       RABBITMQ_URL: amqp://rabbitmq
-      REDIS_HOST: redis
       VENDOR_SERVICE_URL: http://vendor-service:5001
     depends_on:
       - order-db
       - rabbitmq
-      - redis
-
 
   # -----------------------------
   # DELIVERY SERVICE
@@ -145,16 +142,6 @@ services:
       - "15672:15672"  # management UI
     restart: always
 
-
-  # -----------------------------
-  # REDIS
-  # -----------------------------
-  redis:
-    image: redis:7-alpine
-    container_name: redis_container
-    ports:
-      - "6379:6379"
-    restart: always
 
 
   # -----------------------------

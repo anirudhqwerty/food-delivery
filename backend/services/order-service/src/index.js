@@ -2,7 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
-const { initDb, getDb, closeDb, initRabbit, getRabbit, closeRabbit, initRedis, getRedis, closeRedis } = require("../db");
+const { initDb, getDb, closeDb, initRabbit, getRabbit, closeRabbit } = require("../db");
 const orderRoutes = require("../routes/restaurant.routes");
 const startConsumer = require("./order.consumer");
 
@@ -22,11 +22,9 @@ app.get("/health/ready", async (req, res) => {
   try {
     const db = getDb();
     const channel = getRabbit();
-    const redis = getRedis();
-    
+
     await db.query("SELECT 1");
-    await redis.ping();
-    
+
     res.json({ status: "ready" });
   } catch (err) {
     res.status(503).json({ status: "not_ready", error: err.message });
@@ -48,9 +46,6 @@ async function start() {
     await initRabbit();
     console.log("✓ RabbitMQ connected");
 
-    await initRedis();
-    console.log("✓ Redis connected");
-
     await startConsumer();
     console.log("✓ Consumer started");
 
@@ -64,7 +59,6 @@ async function start() {
       server.close(async () => {
         try {
           await closeRabbit();
-          await closeRedis();
           await closeDb();
           console.log("✓ All connections closed");
           process.exit(0);

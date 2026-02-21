@@ -1,10 +1,8 @@
 const { Pool } = require("pg");
 const amqp = require("amqplib");
-const Redis = require("ioredis");
 
 let db;
 let rabbit = { connection: null, channel: null };
-let redis;
 
 async function initDb() {
   let retries = 5;
@@ -81,50 +79,6 @@ async function closeRabbit() {
   if (rabbit.connection) await rabbit.connection.close();
 }
 
-async function initRedis() {
-  let retries = 5;
-  let lastError;
-  
-  while (retries > 0) {
-    try {
-      redis = new Redis({
-        host: process.env.REDIS_HOST || "localhost",
-        port: 6379,
-        retryStrategy: (times) => Math.min(times * 50, 2000),
-        connectTimeout: 5000,
-      });
-      
-      await new Promise((resolve, reject) => {
-        redis.on("connect", resolve);
-        redis.on("error", reject);
-        setTimeout(() => reject(new Error("Redis connection timeout")), 5000);
-      });
-      return;
-    } catch (err) {
-      lastError = err;
-      retries--;
-      if (redis) {
-        redis.disconnect();
-        redis = null;
-      }
-      if (retries > 0) {
-        console.log(`Redis connection failed, retrying... (${retries} retries left)`);
-        await new Promise(r => setTimeout(r, 2000));
-      }
-    }
-  }
-  throw lastError;
-}
-
-function getRedis() {
-  if (!redis) throw new Error("Redis not initialized");
-  return redis;
-}
-
-async function closeRedis() {
-  if (redis) await redis.quit();
-}
-
 module.exports = {
   initDb,
   getDb,
@@ -132,7 +86,4 @@ module.exports = {
   initRabbit,
   getRabbit,
   closeRabbit,
-  initRedis,
-  getRedis,
-  closeRedis,
 };

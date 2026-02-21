@@ -1,16 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { apiRequest } from '../../lib/api';
+import { getToken } from '../../lib/auth';
 
 export default function DriverDashboard() {
   const [availableDeliveries, setAvailableDeliveries] = useState<any[]>([]);
   const [activeDelivery, setActiveDelivery] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [userToken, setUserToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const initializeToken = async () => {
+      const token = await getToken();
+      setUserToken(token);
+    };
+    initializeToken();
+  }, []);
 
   const fetchDeliveries = async () => {
     try {
       setLoading(true);
-      const data = await apiRequest('/delivery/available');
+      const data = await apiRequest('/delivery/available', 'GET', undefined, userToken);
       setAvailableDeliveries(data);
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -20,17 +30,17 @@ export default function DriverDashboard() {
   };
 
   useEffect(() => {
-    // If we don't have an active delivery, poll for new ones
-    if (!activeDelivery) {
+    // If we have a token and don't have an active delivery, poll for new ones
+    if (!activeDelivery && userToken) {
       fetchDeliveries();
       const interval = setInterval(fetchDeliveries, 10000);
       return () => clearInterval(interval);
     }
-  }, [activeDelivery]);
+  }, [activeDelivery, userToken]);
 
   const updateStatus = async (deliveryId: string, newStatus: string) => {
     try {
-      const updated = await apiRequest(`/delivery/${deliveryId}/status`, 'PUT', { status: newStatus });
+      const updated = await apiRequest(`/delivery/${deliveryId}/status`, 'PUT', { status: newStatus }, userToken);
       
       if (newStatus === 'DELIVERED') {
         setActiveDelivery(null);
